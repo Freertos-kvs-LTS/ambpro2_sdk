@@ -109,6 +109,26 @@ static void kvsAudioInitTrackInfo(Kvs_t *pKvs)
 }
 #endif
 
+static int setupTagsForSession(Kvs_t *pKvs)
+{
+	int res = ERRNO_NONE;
+
+	const size_t tagsListLen = 9;
+	MkvTag_t *tags = kvsMalloc(tagsListLen * sizeof(MkvTag_t));
+
+	for (int i = 1; i <= 9; i++) {
+		snprintf((char *) tags[i - 1].key, 128, "test_key_%d", i);
+		snprintf((char *) tags[i - 1].value, 256, "test_value_%d", i);
+	}
+
+	pKvs->tagsList = tags;
+	pKvs->tagsListLen = tagsListLen;
+
+	printf("Setup tags for session\r\n");
+
+	return res;
+}
+
 static int kvsInitialize(Kvs_t *pKvs)
 {
 	int res = ERRNO_NONE;
@@ -143,6 +163,8 @@ static int kvsInitialize(Kvs_t *pKvs)
 		pKvs->xIotCredentialReq.pCertificate = CERTIFICATE;
 		pKvs->xIotCredentialReq.pPrivateKey = PRIVATE_KEY;
 #endif
+		setupTagsForSession(pKvs);
+
 		pKvs->inited = true;
 	}
 	return res;
@@ -169,7 +191,7 @@ static int setupDataEndpoint(Kvs_t *pKvs)
 	} else {
 		if (pKvs->xServicePara.pcPutMediaEndpoint != NULL) {
 		} else {
-			printf("Try to describe stream\r\n");
+			printf("Try to describe stream with fragment metadata!!\r\n");
 			if (Kvs_describeStream(&(pKvs->xServicePara), &(pKvs->xDescPara), &uHttpStatusCode) != ERRNO_NONE || uHttpStatusCode != 200) {
 				printf("Failed to describe stream\r\n");
 				printf("Try to create stream\r\n");
@@ -336,6 +358,10 @@ static int putMediaSendData(Kvs_t *pKvs, int *pxSendCnt, bool bForceSend)
 		} else if (Kvs_dataFrameGetContent(xDataFrameHandle, &pMkvHeader, &uMkvHeaderLen, &pData, &uDataLen) != ERRNO_NONE) {
 			printf("Failed to get data and mkv header to send\r\n");
 			res = ERRNO_FAIL;
+		} else if (
+			(((DataFrameIn_t *)xDataFrameHandle)->xClusterType == MKV_CLUSTER) &&
+			(res = Kvs_dataFrameAddTags(xDataFrameHandle, pKvs->tagsList, pKvs->tagsListLen, false, &pMkvHeader, &uMkvHeaderLen, &pData, &uDataLen)) != ERRNO_NONE) {
+			printf("Failed to add tags\r\n");
 		} else if (Kvs_putMediaUpdate(pKvs->xPutMediaHandle, pMkvHeader, uMkvHeaderLen, pData, uDataLen) != ERRNO_NONE) {
 			printf("Failed to update\r\n");
 			res = ERRNO_FAIL;

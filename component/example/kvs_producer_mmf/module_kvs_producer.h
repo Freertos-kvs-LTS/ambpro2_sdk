@@ -35,6 +35,9 @@ typedef struct Kvs {
 	VideoTrackInfo_t *pVideoTrackInfo;
 	AudioTrackInfo_t *pAudioTrackInfo;
 
+	MkvTag_t *tagsList;
+	size_t tagsListLen;
+
 	bool inited;
 } Kvs_t;
 
